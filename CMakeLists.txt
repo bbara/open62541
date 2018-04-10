@@ -425,8 +425,6 @@ if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID
     endif()
 endif()
 
-
-
 if(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE=1")
@@ -890,7 +888,6 @@ else()
         set_source_files_properties(${lib_sources} PROPERTIES LANGUAGE CXX)
         set_source_files_properties(${default_plugin_sources} ${ua_architecture_sources} PROPERTIES LANGUAGE CXX)
     endif()
-
 endif()
 
 # Export Symbols
