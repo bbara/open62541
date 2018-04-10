@@ -244,7 +244,7 @@ else
         echo -en 'travis_fold:end:script.build.multithread_discovery\\r'
     fi
 
-    echo -e "\r\n== Unit tests (full NS0) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_full\\r'
+    echo -e "\r\n== Unit tests (full NS0; Debug) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_full_debug\\r'
     mkdir -p build && cd build
     # Valgrind cannot handle the full NS0 because the generated file is too big. Thus run NS0 full without valgrind
     cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_NAMESPACE_ZERO=FULL \
@@ -254,10 +254,33 @@ else
     make -j && make test ARGS="-V"
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
-    echo -en 'travis_fold:end:script.build.unit_test_ns0_full\\r'
+    echo -en 'travis_fold:end:script.build.unit_test_ns0_full_debug\\r'
+
+    #echo -e "\r\n== Unit tests (full NS0; Release) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_full_release\\r'
+    #mkdir -p build && cd build
+    # Valgrind cannot handle the full NS0 because the generated file is too big. Thus run NS0 full without valgrind
+    #cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_FULL_NS0=ON \
+    #-DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
+    #-DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF \
+    #-DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
+    #make -j && make test ARGS="-V"
+    #if [ $? -ne 0 ] ; then exit 1 ; fi
+    #cd .. && rm build -rf
+    #echo -en 'travis_fold:end:script.build.unit_test_ns0_full_release\\r'
+
+    echo -e "\r\n== Unit tests (minimal NS0; Release) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal_release\\r'
+    mkdir -p build && cd build
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
+    -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
+    -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF \
+    -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
+    make -j && make test ARGS="-V"
+    if [ $? -ne 0 ] ; then exit 1 ; fi
+    cd .. && rm build -rf
+    echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal_release\\r'
 
     if [ "$CC" != "tcc" ]; then
-        echo -e "\r\n== Unit tests (minimal NS0) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal\\r'
+        echo -e "\r\n== Unit tests (minimal NS0; Debug) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal_debug\\r'
         mkdir -p build && cd build
         cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
         -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
@@ -265,7 +288,7 @@ else
         -DUA_ENABLE_UNIT_TESTS_MEMCHECK=ON ..
         make -j && make test ARGS="-V"
         if [ $? -ne 0 ] ; then exit 1 ; fi
-        echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal\\r'
+        echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal_debug\\r'
 
         # only run coveralls on main repo and when MINGW=true
         # We only want to build coveralls once, so we just take the travis run where MINGW=true which is only enabled once

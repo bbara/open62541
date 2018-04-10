@@ -323,6 +323,7 @@ endif()
 # Compiler Settings #
 #####################
 
+include(CompilerFlags)
 if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
     # Compiler
     add_definitions(-std=c99 -pipe
@@ -338,8 +339,20 @@ if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID
                     -Wnested-externs
                     -Wmultichar
                     -Wundef
-                    -Wc++-compat)
+                    -Wc++-compat
+                    -fno-strict-aliasing # fewer compiler assumptions about pointer types
+                    -fexceptions # recommended for multi-threaded C code, also in combination with C++ code
+                    )
 
+    if (NOT MINGW)
+        check_cc_flag("-fstack-protector-strong") # more performant stack protector, available since gcc 4.9
+        # link ssp manually if it can be found (basically only needed on MinGW)
+        find_library(SSP ssp)
+        if(SSP)
+            list(APPEND open62541_LIBRARIES ${SSP})
+        endif()
+    endif()
+	
     if(UA_ENABLE_AMALGAMATION)
         add_definitions(-Wno-unused-function)
     endif()
@@ -357,8 +370,28 @@ if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID
 
     # Strip release builds
     if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel" OR CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_definitions(-ffunction-sections -fdata-sections -fno-stack-protector -fno-unwind-tables
-                        -fno-asynchronous-unwind-tables -fno-math-errno -fmerge-all-constants -fno-ident)
+        add_definitions(-ffunction-sections -fdata-sections -fno-unwind-tables #-fno-stack-protector
+                        -fno-asynchronous-unwind-tables -fno-math-errno -fmerge-all-constants -fno-ident -O2)
+
+        # hardening
+        check_cc_flag("-D_FORTIFY_SOURCE=2") # run-time buffer overflow detection (needs at least -O1)
+        check_cc_flag_untested("-mcet -fcf-protection") # future use (control flow integrity protection)
+        # These cmake settings result in an error on mingw
+        if (NOT MINGW)
+            check_cc_flag_untested("-fstack-clash-protection") # future use (increased reliability of stack overflow detection)
+
+            # needed to check if IPO is supported (check needs cmake > 3.9)
+            if("${CMAKE_VERSION}" VERSION_GREATER 3.9)
+                cmake_policy(SET CMP0069 NEW) # needed as long as required cmake < 3.9
+                include(CheckIPOSupported)
+                check_ipo_supported(RESULT CC_HAS_IPO) # Inter Procedural Optimization / Link Time Optimization (should be same as -flto)
+                if(CC_HAS_IPO)
+                    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+                endif()
+            endif()
+        endif()
+
+
         if(NOT OS9)
             set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -s")
             set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -s")

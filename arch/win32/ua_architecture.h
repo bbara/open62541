@@ -57,7 +57,7 @@
 #else /* UA_sleep_ms */
 /* With this one can define its own UA_sleep_ms using a preprocessor define.
 E.g. see unit tests. */
-void UA_sleep_ms(size_t ms);
+void UA_sleep_ms(unsigned int ms);
 #endif
 
 // Windows does not support ansi colors
