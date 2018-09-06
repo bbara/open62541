@@ -1,6 +1,9 @@
-cmake_minimum_required(VERSION 3.0)
+ cmake_minimum_required(VERSION 3.0...3.12)
 project(open62541)
 # set(CMAKE_VERBOSE_MAKEFILE ON)
+if(${CMAKE_VERSION} VERSION_LESS 3.12)
+    cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
+endif()
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools/cmake")
 find_package(PythonInterp REQUIRED)
@@ -225,6 +228,9 @@ mark_as_advanced(UA_ENABLE_DISCOVERY_SEMAPHORE)
 option(UA_ENABLE_UNIT_TESTS_MEMCHECK "Use Valgrind (Linux) or DrMemory (Windows) to detect memory leaks when running the unit tests" OFF)
 mark_as_advanced(UA_ENABLE_UNIT_TESTS_MEMCHECK)
 
+option(UA_ENABLE_STATIC_ANALYZER "Use static analyzer (clang-tidy, cppcheck, cpplint) if they are available" OFF)
+mark_as_advanced(UA_ENABLE_STATIC_ANALYZER)
+
 option(UA_ENABLE_NONSTANDARD_UDP "Enable udp extension (non-standard)" OFF)
 mark_as_advanced(UA_ENABLE_NONSTANDARD_UDP)
 
@@ -296,6 +302,66 @@ if(BUILD_SHARED_LIBS)
       set(MDNSD_DYNAMIC_LINKING ON)
   endif()
 endif()
+
+############################
+# Linting run (clang-tidy) #
+############################
+
+if(UA_ENABLE_STATIC_ANALYZER)
+  if(CMAKE_VERSION VERSION_GREATER 3.6)
+    find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+    if(CLANG_TIDY_EXE)
+      set(CMAKE_C_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=cert-*,performance-*,readability-*,-readability-braces-around-statements;\
+-warnings-as-errors=cert-*,performance-*,readability-*,-readability-braces-around-statements")
+    endif()
+
+    find_program(CPPCHECK_EXE NAMES "cppcheck")
+    if(CPPCHECK_EXE)
+      set(CMAKE_C_CPPCHECK "${CPPCHECK_EXE};--enable=all;--inconclusive;--suppress=missingIncludeSystem")
+    endif()
+
+    find_program(CPPLINT_EXE NAMES "cpplint")
+    if(CPPLINT_EXE)
+      #set(CMAKE_C_CPPLINT "${CPPLINT_EXE}")
+    endif()
+  endif()
+endif()
+
+# keep the targets for now
+find_package(ClangTools)
+add_custom_target(lint ${CLANG_TIDY_PROGRAM}
+                  ${lib_sources}
+                  -checks=cert-*,performance-*,readability-*,-readability-braces-around-statements
+                  -warnings-as-errors=cert-*,performance-*,readability-*,-readability-braces-around-statements
+                  --
+                  -std=c99
+                  -I${PROJECT_SOURCE_DIR}/include
+                  -I${PROJECT_SOURCE_DIR}/plugins
+                  -I${PROJECT_SOURCE_DIR}/deps
+                  -I${PROJECT_SOURCE_DIR}/src
+                  -I${PROJECT_SOURCE_DIR}/src/server
+                  -I${PROJECT_SOURCE_DIR}/src/client
+                  -I${PROJECT_BINARY_DIR}/src_generated
+                  -DUA_NO_AMALGAMATION
+                  DEPENDS ${lib_sources}
+                  COMMENT "Run clang-tidy on the library")
+add_dependencies(lint open62541)
+
+add_custom_target(cpplint cpplint
+                  ${lib_sources}
+                  ${internal_headers}
+                  ${default_plugin_headers}
+                  ${default_plugin_sources}
+                  ${ua_architecture_headers}
+                  ${ua_architecture_sources}
+                  DEPENDS ${lib_sources}
+                          ${internal_headers}
+                          ${default_plugin_headers}
+                          ${default_plugin_sources}
+                          ${ua_architecture_headers}
+                          ${ua_architecture_sources}
+
+                  COMMENT "Run cpplint code style checker on the library")
 
 ######################
 # External Libraries #
@@ -933,45 +999,6 @@ endif()
 if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ OR UA_BUILD_FUZZING_CORPUS)
     add_subdirectory(tests/fuzz)
 endif()
-
-############################
-# Linting run (clang-tidy) #
-############################
-
-find_package(ClangTools)
-add_custom_target(lint ${CLANG_TIDY_PROGRAM}
-                  ${lib_sources}
-                  -checks=cert-*,performance-*,readability-*,-readability-braces-around-statements
-                  -warnings-as-errors=cert-*,performance-*,readability-*,-readability-braces-around-statements
-                  --
-                  -std=c99
-                  -I${PROJECT_SOURCE_DIR}/include
-                  -I${PROJECT_SOURCE_DIR}/plugins
-                  -I${PROJECT_SOURCE_DIR}/deps
-                  -I${PROJECT_SOURCE_DIR}/src
-                  -I${PROJECT_SOURCE_DIR}/src/server
-                  -I${PROJECT_SOURCE_DIR}/src/client
-                  -I${PROJECT_BINARY_DIR}/src_generated
-                  -DUA_NO_AMALGAMATION
-                  DEPENDS ${lib_sources}
-                  COMMENT "Run clang-tidy on the library")
-add_dependencies(lint open62541)
-
-add_custom_target(cpplint cpplint
-                  ${lib_sources}
-                  ${internal_headers}
-                  ${default_plugin_headers}
-                  ${default_plugin_sources}
-                  ${ua_architecture_headers}
-                  ${ua_architecture_sources}
-                  DEPENDS ${lib_sources}
-                          ${internal_headers}
-                          ${default_plugin_headers}
-                          ${default_plugin_sources}
-                          ${ua_architecture_headers}
-                          ${ua_architecture_sources}
-
-                  COMMENT "Run cpplint code style checker on the library")
 
 ##########################
 # Installation           #
