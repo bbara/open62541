@@ -1,6 +1,9 @@
-cmake_minimum_required(VERSION 3.0)
+ cmake_minimum_required(VERSION 3.0...3.12)
 project(open62541)
 # set(CMAKE_VERBOSE_MAKEFILE ON)
+if(${CMAKE_VERSION} VERSION_LESS 3.12)
+    cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
+endif()
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/tools/cmake")
 find_package(PythonInterp REQUIRED)
@@ -365,6 +368,7 @@ endif()
 # Compiler Settings #
 #####################
 
+include(CompilerFlags)
 if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
     # Compiler
     add_definitions(-std=c99 -pipe
@@ -382,6 +386,15 @@ if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID
                     -Wundef
                     -Wc++-compat)
 
+    if (NOT MINGW)
+        check_cc_flag("-fstack-protector-strong") # more performant stack protector, available since gcc 4.9
+        # link ssp manually if it can be found (basically only needed on MinGW)
+        find_library(SSP ssp)
+        if(SSP)
+            list(APPEND open62541_LIBRARIES ${SSP})
+        endif()
+    endif()
+	
     if(UA_ENABLE_AMALGAMATION)
         add_definitions(-Wno-unused-function)
     endif()
