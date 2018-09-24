@@ -53,3 +53,10 @@ FUNCTION(ua_architecture_append_to_library)
         set_property(GLOBAL APPEND PROPERTY UA_ARCHITECTURE_APPEND_TO_LIBRARY ${ARG})
     ENDFOREACH(ARG)
 ENDFUNCTION(ua_architecture_append_to_library)
+
+# Check if a variable is set via commandline by the user, otherwise set it
+FUNCTION(ua_set_if_not_set)
+  IF(NOT ${ARGV0})
+    set(${ARGV0} ${ARGV1} CACHE STRING "")
+  ENDIF()
+ENDFUNCTION()

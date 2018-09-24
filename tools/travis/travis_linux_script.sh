@@ -14,12 +14,9 @@ if ! [ -z ${SONAR+x} ]; then
     git fetch --unshallow
 	mkdir -p build && cd build
 	build-wrapper-linux-x86-64 --out-dir ../bw-output cmake \
-        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_BUILD_TYPE=DebugExamples \
         -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-	    -DUA_BUILD_EXAMPLES=ON \
-        -DUA_ENABLE_DISCOVERY=ON \
         -DUA_ENABLE_DISCOVERY_MULTICAST=ON \
-        -DUA_ENABLE_ENCRYPTION .. \
     && make -j
 	cd ..
 	sonar-scanner
@@ -40,8 +37,8 @@ fi
 if ! [ -z ${LINT+x} ]; then
     mkdir -p build
     cd build
-    cmake ..
-    make cpplint
+    cmake -DUA_ENABLE_STATIC_ANALYZER=ON ..
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     exit 0
 fi
@@ -53,7 +50,7 @@ if ! [ -z ${FUZZER+x} ]; then
     if [ $? -ne 0 ] ; then exit 1 ; fi
 
     cd build_fuzz
-    make && make run_fuzzer
+    make -j && make run_fuzzer
     if [ $? -ne 0 ] ; then exit 1 ; fi
     exit 0
 fi
@@ -99,9 +96,7 @@ if [ $ANALYZE = "true" ]; then
     if ! case $CC in clang*) false;; esac; then
         mkdir -p build
         cd build
-        scan-build-6.0 cmake \
-            -DUA_BUILD_EXAMPLES=ON \
-            -DUA_BUILD_UNIT_TESTS=ON ..
+        scan-build-6.0 cmake -DCMAKE_BUILD_TYPE=DebugFull ..
         scan-build-6.0 -enable-checker security.FloatLoopCounter \
           -enable-checker security.insecureAPI.UncheckedReturn \
           --status-bugs -v \
@@ -153,13 +148,12 @@ else
     mkdir -p build
     cd build
     cmake \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=ReleaseExamples \
         -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-        -DUA_BUILD_EXAMPLES=ON \
         -DUA_BUILD_SELFSIGNED_CERTIFICATE=ON ..
-    make doc
-    make doc_pdf
-    make selfsigned
+    make -j doc
+    make -j doc_pdf
+    make -j selfsigned
     cp -r doc ../../
     cp -r doc_latex ../../
     cp ./examples/server_cert.der ../../
@@ -368,22 +362,11 @@ else
     mkdir -p build && cd build
     # Valgrind cannot handle the full NS0 because the generated file is too big. Thus run NS0 full without valgrind
     cmake \
-        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_BUILD_TYPE=DebugCI \
         -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-        -DUA_BUILD_EXAMPLES=ON \
-        -DUA_BUILD_UNIT_TESTS=ON \
         -DUA_ENABLE_COVERAGE=OFF \
-        -DUA_ENABLE_DISCOVERY=ON \
-        -DUA_ENABLE_DISCOVERY_MULTICAST=ON \
-        -DUA_ENABLE_ENCRYPTION=ON \
-        -DUA_ENABLE_JSON_ENCODING=ON \
-        -DUA_ENABLE_PUBSUB=ON \
-        -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON \
-        -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON \
-        -DUA_ENABLE_SUBSCRIPTIONS=ON \
-        -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON \
         -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF \
-        -DUA_NAMESPACE_ZERO=FULL ..
+        ..
     make -j && make test ARGS="-V"
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
@@ -404,18 +387,9 @@ else
         echo -e "\r\n== Unit tests (minimal NS0) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal\\r'
         mkdir -p build && cd build
         cmake \
-            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_BUILD_TYPE=DebugCI \
             -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-            -DUA_BUILD_EXAMPLES=ON \
-            -DUA_BUILD_UNIT_TESTS=ON \
-            -DUA_ENABLE_COVERAGE=ON \
-            -DUA_ENABLE_DISCOVERY=ON \
-            -DUA_ENABLE_DISCOVERY_MULTICAST=ON \
-            -DUA_ENABLE_ENCRYPTION=ON \
-            -DUA_ENABLE_PUBSUB=ON \
-            -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON \
-            -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON \
-            -DUA_ENABLE_UNIT_TESTS_MEMCHECK=ON ..
+            ..
         make -j && make test ARGS="-V"
         if [ $? -ne 0 ] ; then exit 1 ; fi
         echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal\\r'

@@ -49,244 +49,52 @@ if(NOT OPEN62541_VER_COMMIT OR OPEN62541_VER_COMMIT STREQUAL "")
     set(OPEN62541_VER_COMMIT "undefined")
 endif()
 
+######################
+# External Libraries #
+######################
+
+list(APPEND open62541_LIBRARIES "")
+include(helper_external)
+
 #################
 # Build Options #
 #################
 
-# Set default build type.
-if(NOT CMAKE_BUILD_TYPE)
-    message(STATUS "CMAKE_BUILD_TYPE not given; setting to 'Debug'")
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build" FORCE)
+# include the build type stuff
+include(helper_buildtype)
+
+# include the cmake option and option-dependent stuff
+include(helper_options)
+include(helper_option_dependent)
+
+# include the arch dependent stuff
+include(helper_arch)
+
+# include the compiler dependent stuff
+include(CompilerFlags)
+if(MSVC)
+  include(helper_compiler_msvc)
+elseif(CMAKE_COMPILER_IS_GNUCC AND MINGW)
+  include(helper_compiler_mingw-gcc)
+elseif(CMAKE_COMPILER_IS_GNUCC)
+  include(helper_compiler_gcc)
+elseif("x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang")
+  include(helper_compiler_clang)
 endif()
 
-
-option(UA_ENABLE_AMALGAMATION "Concatenate the library to a single file open62541.h/.c" OFF)
-set(UA_AMALGAMATION_ARCHITECTURES "" CACHE STRING "List of architectures to include in amalgamation")
-mark_as_advanced(UA_AMALGAMATION_ARCHITECTURES)
-
-# Platform. This is at the beginning in case the architecture changes some UA options
-set(UA_ARCHITECTURE "None" CACHE STRING "Architecture to build open62541 on")
-
-if(UA_ENABLE_AMALGAMATION)
-    if("${UA_AMALGAMATION_ARCHITECTURES}" STREQUAL "")
-        if(NOT "${UA_ARCHITECTURE}" STREQUAL "None")
-            set(UA_AMALGAMATION_ARCHITECTURES "${UA_ARCHITECTURE}")
-        else()
-            # select some default architectures which should be included
-            set(UA_AMALGAMATION_ARCHITECTURES "win32;posix")
-        endif()
-    endif()
-    message(STATUS "Architectures included in amalgamation: ${UA_AMALGAMATION_ARCHITECTURES}")
-endif()
-
-if("${UA_ARCHITECTURE}" STREQUAL "None")
-    if(UNIX)
-        set(UA_ARCHITECTURE "posix" CACHE STRING "" FORCE)
-    elseif(WIN32)
-        set(UA_ARCHITECTURE "win32" CACHE STRING ""  FORCE)
-    endif(UNIX)
-endif()
-
-message(STATUS "The selected architecture is: ${UA_ARCHITECTURE}")
-string(TOUPPER ${UA_ARCHITECTURE} UA_ARCHITECTURE_UPPER)
-add_definitions(-DUA_ARCHITECTURE_${UA_ARCHITECTURE_UPPER})
-
-add_subdirectory(arch)
-
-GET_PROPERTY(architectures GLOBAL PROPERTY UA_ARCHITECTURES)
-list(SORT architectures)
-set_property(CACHE UA_ARCHITECTURE PROPERTY STRINGS None ${architectures})
+# include the tools stuff
+include(helper_tools)
 
 GET_PROPERTY(ua_directories_to_include GLOBAL PROPERTY UA_INCLUDE_DIRECTORIES)
 include_directories(${ua_directories_to_include})
 
-GET_PROPERTY(ua_architecture_headers GLOBAL PROPERTY UA_ARCHITECTURE_HEADERS)
+#########################
+# Generate Main Library #
+#########################
 
-GET_PROPERTY(ua_architecture_headers_beginning GLOBAL PROPERTY UA_ARCHITECTURE_HEADERS_BEGINNING)
-
-GET_PROPERTY(ua_architecture_sources GLOBAL PROPERTY UA_ARCHITECTURE_SOURCES)
-
-set(ua_architecture_sources ${ua_architecture_sources}
-            ${PROJECT_SOURCE_DIR}/arch/ua_network_tcp.c
-)
-
-set(ua_architecture_headers ${ua_architecture_headers}
-            ${PROJECT_SOURCE_DIR}/arch/ua_network_tcp.h
-            ${PROJECT_SOURCE_DIR}/arch/ua_architecture_functions.h
-)
-
-
-
-if(${UA_ARCHITECTURE} STREQUAL "None")
-  message(FATAL_ERROR "No architecture was selected. Please select the architecture of your target platform")
-endif(${UA_ARCHITECTURE} STREQUAL "None")
-
-# Create a list of ifdefs for all the architectures.
-# This is needed to enable a default architecture if none is selected through gcc compiler def.
-# Especially if someone is using the amalgamated file on Linux/Windows he should not need to define an architecture.
-set(UA_ARCHITECTURES_NODEF "1 ") #to make it easier to append later the && symbol
-foreach(arch_ ${architectures})
-    string(TOUPPER ${arch_} UA_ARCHITECTURE_UPPER_)
-    set(UA_ARCHITECTURES_NODEF "${UA_ARCHITECTURES_NODEF} && !defined(UA_ARCHITECTURE_${UA_ARCHITECTURE_UPPER_})")
-endforeach(arch_ ${architectures})
-
-# Options
-set(UA_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported")
-option(UA_ENABLE_HISTORIZING "Enable server and client to provide historical access." ON)
-option(UA_ENABLE_EXPERIMENTAL_HISTORIZING "Enable client experimental historical access features." OFF)
-option(UA_ENABLE_METHODCALLS "Enable the Method service set" ON)
-option(UA_ENABLE_NODEMANAGEMENT "Enable dynamic addition and removal of nodes at runtime" ON)
-option(UA_ENABLE_SUBSCRIPTIONS "Enable subscriptions support." ON)
-option(UA_ENABLE_SUBSCRIPTIONS_EVENTS "Enable the use of events. (EXPERIMENTAL)" OFF)
-option(UA_ENABLE_DISCOVERY "Enable Discovery Service (LDS)" ON)
-option(UA_ENABLE_DISCOVERY_MULTICAST "Enable Discovery Service with multicast support (LDS-ME)" OFF)
-option(UA_ENABLE_QUERY "Enable query support." OFF)
-option(UA_ENABLE_COVERAGE "Enable gcov coverage" OFF)
-option(UA_ENABLE_ENCRYPTION "Enable encryption support (uses mbedTLS)" OFF)
-option(BUILD_SHARED_LIBS "Enable building of shared libraries (dll/so)" OFF)
-
-# Namespace Zero
-set(UA_NAMESPACE_ZERO "REDUCED" CACHE STRING "Completeness of the generated namespace zero (minimal/reduced/full)")
-SET_PROPERTY(CACHE UA_NAMESPACE_ZERO PROPERTY STRINGS "MINIMAL" "REDUCED" "FULL")
-if(UA_NAMESPACE_ZERO STREQUAL "MINIMAL")
-    set(UA_GENERATED_NAMESPACE_ZERO OFF)
-else()
-    set(UA_GENERATED_NAMESPACE_ZERO ON)
-endif()
-
-if(MSVC AND UA_NAMESPACE_ZERO STREQUAL "FULL")
-    # For the full NS0 we need a stack size of 8MB (as it is default on linux)
-    # See https://github.com/open62541/open62541/issues/1326
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8000000")
-endif()
-
-# It should not be possible to enable events without enabling subscriptions and full ns0
-if((UA_ENABLE_SUBSCRIPTIONS_EVENTS) AND (NOT (UA_ENABLE_SUBSCRIPTIONS AND UA_NAMESPACE_ZERO STREQUAL "FULL")))
-    message(FATAL_ERROR "Unable to enable events without UA_ENABLE_SUBSCRIPTIONS and full namespace 0")
-endif()
-
-if(UA_ENABLE_COVERAGE)
-  set(CMAKE_BUILD_TYPE DEBUG)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-coverage -lgcov")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fprofile-arcs -ftest-coverage")
-endif()
-
-if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ OR UA_BUILD_FUZZING_CORPUS)
-    # Force enable options not passed in the build script, to also fuzzy-test this code
-    set(UA_ENABLE_DISCOVERY ON CACHE STRING "" FORCE)
-    set(UA_ENABLE_DISCOVERY_MULTICAST ON CACHE STRING "" FORCE)
-    set(UA_ENABLE_ENCRYPTION ON CACHE STRING "" FORCE)
-endif()
-
-if(UA_ENABLE_DISCOVERY_MULTICAST AND NOT UA_ENABLE_DISCOVERY)
-    MESSAGE(WARNING "UA_ENABLE_DISCOVERY_MULTICAST is enabled, but not UA_ENABLE_DISCOVERY. UA_ENABLE_DISCOVERY_MULTICAST will be set to OFF")
-    SET(UA_ENABLE_DISCOVERY_MULTICAST OFF CACHE BOOL "Enable Discovery Service with multicast support (LDS-ME)" FORCE)
-endif()
-
-# Advanced options
-option(UA_ENABLE_MULTITHREADING "Enable multithreading (EXPERIMENTAL)" OFF)
-mark_as_advanced(UA_ENABLE_MULTITHREADING)
-
-option(UA_ENABLE_IMMUTABLE_NODES "Nodes in the information model are not edited but copied and replaced" OFF)
-mark_as_advanced(UA_ENABLE_IMMUTABLE_NODES)
-if(UA_ENABLE_MULTITHREADING)
-    set(UA_ENABLE_IMMUTABLE_NODES ON)
-endif()
-
-option(UA_ENABLE_PUBSUB "Enable publish/subscribe" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB)
-
-option(UA_ENABLE_PUBSUB_ETH_UADP "Enable publish/subscribe UADP over Ethernet" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB_ETH_UADP)
-if(UA_ENABLE_PUBSUB_ETH_UADP)
-    if (NOT CMAKE_SYSTEM MATCHES "Linux")
-    message(FATAL_ERROR "UADP over Ethernet is only available on Linux.")
-	endif()
-endif()
-
-option(UA_ENABLE_PUBSUB_DELTAFRAMES "Enable sending of delta frames with only the changes" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB_DELTAFRAMES)
-
-option(UA_ENABLE_PUBSUB_INFORMATIONMODEL "Enable PubSub information model twin" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB_INFORMATIONMODEL)
-option(UA_ENABLE_PUBSUB_INFORMATIONMODEL_METHODS "Enable PubSub informationmodel methods" OFF)
-mark_as_advanced(UA_ENABLE_PUBSUB_INFORMATIONMODEL_METHODS)
-if(UA_ENABLE_PUBSUB_INFORMATIONMODEL_METHODS)
-    if(NOT UA_ENABLE_PUBSUB_INFORMATIONMODEL)
-        message(FATAL_ERROR "PubSub information model methods cannot be used with disabled PubSub information model.")
-    endif()
-endif()
-if(UA_ENABLE_PUBSUB_INFORMATIONMODEL)
-    if(NOT UA_ENABLE_PUBSUB)
-        message(FATAL_ERROR "PubSub information model representation cannot be used with disabled PubSub function.")
-    endif()
-endif()
-
-option(UA_ENABLE_JSON_ENCODING "Enable Json encoding (EXPERIMENTAL)" OFF)
-mark_as_advanced(UA_ENABLE_JSON_ENCODING)
-
-option(UA_ENABLE_STATUSCODE_DESCRIPTIONS "Enable conversion of StatusCode to human-readable error message" ON)
-mark_as_advanced(UA_ENABLE_STATUSCODE_DESCRIPTIONS)
-
-option(UA_ENABLE_TYPENAMES "Add the type and member names to the UA_DataType structure" ON)
-mark_as_advanced(UA_ENABLE_TYPENAMES)
-
-option(UA_ENABLE_NODESET_COMPILER_DESCRIPTIONS "Set node description attribute for nodeset compiler generated nodes" ON)
-mark_as_advanced(UA_ENABLE_NODESET_COMPILER_DESCRIPTIONS)
-
-option(UA_ENABLE_DETERMINISTIC_RNG "Do not seed the random number generator (e.g. for unit tests)." OFF)
-mark_as_advanced(UA_ENABLE_DETERMINISTIC_RNG)
-
-option(UA_ENABLE_VALGRIND_INTERACTIVE "Enable dumping valgrind every iteration. CAUTION! SLOWDOWN!" OFF)
-mark_as_advanced(UA_ENABLE_VALGRIND_INTERACTIVE)
-
-option(UA_MSVC_FORCE_STATIC_CRT "Force linking with the static C-runtime library when compiling to static library with MSVC" ON)
-mark_as_advanced(UA_MSVC_FORCE_STATIC_CRT)
-
-option(UA_FILE_NS0 "Override the NodeSet xml file used to generate namespace zero")
-mark_as_advanced(UA_FILE_NS0)
-
-# Semaphores/file system may not be available on embedded devices. It can be
-# disabled with the following option
-option(UA_ENABLE_DISCOVERY_SEMAPHORE "Enable Discovery Semaphore support" ON)
-mark_as_advanced(UA_ENABLE_DISCOVERY_SEMAPHORE)
-
-option(UA_ENABLE_UNIT_TESTS_MEMCHECK "Use Valgrind (Linux) or DrMemory (Windows) to detect memory leaks when running the unit tests" OFF)
-mark_as_advanced(UA_ENABLE_UNIT_TESTS_MEMCHECK)
-
-option(UA_ENABLE_UNIT_TEST_FAILURE_HOOKS
-       "Add hooks to force failure modes for additional unit tests. Not for production use!" OFF)
-mark_as_advanced(UA_ENABLE_UNIT_TEST_FAILURE_HOOKS)
-
-set(UA_VALGRIND_INTERACTIVE_INTERVAL 1000 CACHE STRING "The number of iterations to wait before creating the next dump")
-mark_as_advanced(UA_VALGRIND_INTERACTIVE_INTERVAL)
-
-# Build options for debugging
-option(UA_DEBUG "Enable assertions and additional functionality that should not be included in release builds" OFF)
-mark_as_advanced(UA_DEBUG)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(UA_DEBUG ON)
-endif()
-
-option(UA_DEBUG_DUMP_PKGS "Dump every package received by the server as hexdump format" OFF)
-mark_as_advanced(UA_DEBUG_DUMP_PKGS)
-
-# Build Targets
-option(UA_BUILD_EXAMPLES "Build example servers and clients" OFF)
-option(UA_BUILD_UNIT_TESTS "Build the unit tests" OFF)
-option(UA_BUILD_FUZZING "Build the fuzzing executables" OFF)
-mark_as_advanced(UA_BUILD_FUZZING)
-if(UA_BUILD_FUZZING)
-    # oss-fuzz already defines this by default
-    add_definitions(-DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
-endif()
-
-if(UA_ENABLE_EXPERIMENTAL_HISTORIZING)
-    if(NOT UA_ENABLE_HISTORIZING)
-        message(FATAL_ERROR "UA_ENABLE_EXPERIMENTAL_HISTORIZING cannot be used with disabled UA_ENABLE_HISTORIZING.")
-    endif()
-endif()
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/src_generated")
+configure_file("include/ua_config.h.in" "${PROJECT_BINARY_DIR}/src_generated/ua_config.h")
+configure_file("include/open62541.pc.in" "${PROJECT_BINARY_DIR}/src_generated/open62541.pc" @ONLY)
 
 if(UA_ENABLE_HISTORIZING)
     set(historizing_exported_headers
@@ -306,170 +114,6 @@ if(UA_ENABLE_HISTORIZING)
         )
 endif()
 
-option(UA_BUILD_FUZZING_CORPUS "Build the fuzzing corpus" OFF)
-mark_as_advanced(UA_BUILD_FUZZING_CORPUS)
-if(UA_BUILD_FUZZING_CORPUS)
-    add_definitions(-DUA_DEBUG_DUMP_PKGS_FILE)
-    set(UA_ENABLE_TYPENAMES ON CACHE STRING "" FORCE)
-    set(UA_DEBUG_DUMP_PKGS ON CACHE STRING "" FORCE)
-endif()
-
-option(UA_BUILD_OSS_FUZZ "Special build switch used in oss-fuzz" OFF)
-mark_as_advanced(UA_BUILD_OSS_FUZZ)
-
-# Advanced Build Targets
-option(UA_BUILD_SELFSIGNED_CERTIFICATE "Generate self-signed certificate" OFF)
-mark_as_advanced(UA_BUILD_SELFSIGNED_CERTIFICATE)
-
-option(UA_PACK_DEBIAN "Special build switch used in .deb packaging" OFF)
-mark_as_advanced(UA_PACK_DEBIAN)
-
-# Building shared libs (dll, so). This option is written into ua_config.h.
-set(UA_DYNAMIC_LINKING OFF)
-if(BUILD_SHARED_LIBS)
-  set(UA_DYNAMIC_LINKING ON)
-  if (UA_ENABLE_DISCOVERY_MULTICAST)
-      set(MDNSD_DYNAMIC_LINKING ON)
-  endif()
-endif()
-
-# Warn if experimental features are enabled
-if(UA_ENABLE_SUBSCRIPTIONS_EVENTS)
-    MESSAGE(WARNING "UA_ENABLE_SUBSCRIPTIONS_EVENTS is enabled. The feature is under development and marked as EXPERIMENTAL")
-endif()
-
-if(UA_ENABLE_MULTITHREADING)
-    MESSAGE(WARNING "UA_ENABLE_MULTITHREADING is enabled. The feature is under development and marked as EXPERIMENTAL")
-endif()
-
-######################
-# External Libraries #
-######################
-
-list(APPEND open62541_LIBRARIES "")
-
-# Force compilation with as C++
-option(UA_COMPILE_AS_CXX "Force compilation with a C++ compiler" OFF)
-mark_as_advanced(UA_COMPILE_AS_CXX)
-if (UA_COMPILE_AS_CXX)
-    # We need the UINT32_C define
-    add_definitions(-D__STDC_CONSTANT_MACROS)
-endif()
-
-if(UA_ENABLE_ENCRYPTION)
-    # The recommended way is to install mbedtls via the OS package manager. If
-    # that is not possible, manually compile mbedTLS and set the cmake variables
-    # defined in /tools/cmake/FindMbedTLS.cmake.
-    find_package(MbedTLS REQUIRED)
-    list(APPEND open62541_LIBRARIES ${MBEDTLS_LIBRARIES})
-endif()
-
-#####################
-# Compiler Settings #
-#####################
-
-include(CompilerFlags)
-if(NOT UA_COMPILE_AS_CXX AND (CMAKE_COMPILER_IS_GNUCC OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang"))
-    # Compiler
-    add_definitions(-std=c99 -pipe
-                    -Wall -Wextra -Werror -Wpedantic
-                    -Wno-static-in-inline # clang doesn't like the use of static inline methods inside static inline methods
-                    -Wno-overlength-strings # may happen in the nodeset compiler when complex values are directly encoded
-                    -Wno-unused-parameter # some methods may require unused arguments to cast to a method pointer
-                    -Wmissing-prototypes -Wstrict-prototypes -Wredundant-decls
-                    -Wformat -Wformat-security -Wformat-nonliteral
-                    -Wuninitialized -Winit-self
-                    -Wcast-qual
-                    -Wstrict-overflow
-                    -Wnested-externs
-                    -Wmultichar
-                    -Wundef
-                    -Wc++-compat)
-
-    if (NOT MINGW)
-        check_cc_flag("-fstack-protector-strong") # more performant stack protector, available since gcc 4.9
-        # link ssp manually if it can be found (basically only needed on MinGW)
-        find_library(SSP ssp)
-        if(SSP)
-            list(APPEND open62541_LIBRARIES ${SSP})
-        endif()
-    endif()
-	
-    if(UA_ENABLE_AMALGAMATION)
-        add_definitions(-Wno-unused-function)
-    endif()
-
-    if(UA_PACK_DEBIAN)
-        remove_definitions(-Wno-static-in-inline)
-    endif()
-
-    # Linker
-    set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "") # cmake sets -rdynamic by default
-
-    # Debug
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        if ("x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang")
-            # Add default sanitizer settings when using clang and Debug build.
-            # This allows e.g. CLion to find memory locations for SegFaults
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-omit-frame-pointer -gline-tables-only -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-coverage=trace-pc-guard,trace-cmp")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -gline-tables-only -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-coverage=trace-pc-guard,trace-cmp")
-        endif()
-    endif()
-
-    # Strip release builds
-    if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel" OR CMAKE_BUILD_TYPE STREQUAL "Release")
-        add_definitions(-ffunction-sections -fdata-sections -fno-stack-protector -fno-unwind-tables
-                        -fno-asynchronous-unwind-tables -fno-math-errno -fno-ident)
-        if(NOT OS9)
-            set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -s")
-            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -s")
-        endif()
-        if(APPLE)
-            set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-dead_strip")
-            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-dead_strip")
-        else()
-            set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--gc-sections")
-            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
-        endif()
-        if(NOT WIN32 AND NOT CYGWIN AND NOT APPLE)
-            # these settings reduce the binary size by ~2kb
-            set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,-z,norelro -Wl,--hash-style=gnu -Wl,--build-id=none")
-        endif()
-    endif()
-endif()
-
-if(APPLE)
-    set(CMAKE_MACOSX_RPATH 1)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_DARWIN_C_SOURCE=1")
-endif()
-
-if(MSVC)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 /WX /w44996") # Compiler warnings, error on warning
-
-  if(UA_MSVC_FORCE_STATIC_CRT AND NOT BUILD_SHARED_LIBS)
-    set(CompilerFlags CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_C_FLAGS
-        CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE)
-    foreach(CompilerFlag ${CompilerFlags})
-      string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
-    endforeach()
-  endif()
-endif()
-
-if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ)
-    add_definitions(-DUA_malloc=UA_memoryManager_malloc)
-    add_definitions(-DUA_free=UA_memoryManager_free)
-    add_definitions(-DUA_calloc=UA_memoryManager_calloc)
-    add_definitions(-DUA_realloc=UA_memoryManager_realloc)
-endif()
-
-#########################
-# Generate Main Library #
-#########################
-
-file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/src_generated")
-configure_file("include/ua_config.h.in" "${PROJECT_BINARY_DIR}/src_generated/ua_config.h")
-configure_file("include/open62541.pc.in" "${PROJECT_BINARY_DIR}/src_generated/open62541.pc" @ONLY)
-
 if(UA_ENABLE_DISCOVERY_MULTICAST)
     set(MDNSD_LOGLEVEL 300 CACHE STRING "Level at which logs shall be reported" FORCE)
     configure_file("deps/mdnsd/libmdnsd/mdnsd_config.h.in" "${PROJECT_BINARY_DIR}/src_generated/mdnsd_config.h")
@@ -477,6 +121,10 @@ endif()
 
 if(UA_ENABLE_DISCOVERY)
     include_directories(${PROJECT_SOURCE_DIR}/src/client)
+endif()
+
+if(UA_ENABLE_ENCRYPTION)
+  include_directories(${MBEDTLS_INCLUDE_DIRS})
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/include
@@ -901,6 +549,7 @@ else()
         set_source_files_properties(${lib_sources} PROPERTIES LANGUAGE CXX)
         set_source_files_properties(${default_plugin_sources} ${ua_architecture_sources} PROPERTIES LANGUAGE CXX)
     endif()
+
 endif()
 
 # Export Symbols
@@ -961,44 +610,6 @@ endif()
 if(UA_BUILD_FUZZING OR UA_BUILD_OSS_FUZZ OR UA_BUILD_FUZZING_CORPUS)
     add_subdirectory(tests/fuzz)
 endif()
-
-############################
-# Linting run (clang-tidy) #
-############################
-
-find_package(ClangTools)
-add_custom_target(lint ${CLANG_TIDY_PROGRAM}
-                  ${lib_sources}
-                  -checks=cert-*,performance-*,readability-*,-readability-braces-around-statements
-                  -warnings-as-errors=cert-*,performance-*,readability-*,-readability-braces-around-statements
-                  --
-                  -std=c99
-                  -I${PROJECT_SOURCE_DIR}/include
-                  -I${PROJECT_SOURCE_DIR}/plugins
-                  -I${PROJECT_SOURCE_DIR}/deps
-                  -I${PROJECT_SOURCE_DIR}/src
-                  -I${PROJECT_SOURCE_DIR}/src/server
-                  -I${PROJECT_SOURCE_DIR}/src/client
-                  -I${PROJECT_BINARY_DIR}/src_generated
-                  DEPENDS ${lib_sources}
-                  COMMENT "Run clang-tidy on the library")
-add_dependencies(lint open62541)
-
-add_custom_target(cpplint cpplint
-                  ${lib_sources}
-                  ${internal_headers}
-                  ${default_plugin_headers}
-                  ${default_plugin_sources}
-                  ${ua_architecture_headers}
-                  ${ua_architecture_sources}
-                  DEPENDS ${lib_sources}
-                          ${internal_headers}
-                          ${default_plugin_headers}
-                          ${default_plugin_sources}
-                          ${ua_architecture_headers}
-                          ${ua_architecture_sources}
-
-                  COMMENT "Run cpplint code style checker on the library")
 
 ##########################
 # Installation           #
