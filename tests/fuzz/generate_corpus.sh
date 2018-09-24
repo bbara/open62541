@@ -32,8 +32,8 @@ else
 	export CXX=clang++-6.0
 fi
 # First build and run the unit tests without any specific fuzz settings
-cmake -DUA_BUILD_FUZZING_CORPUS=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_ENABLE_ENCRYPTION=ON ..
-make -j && make test ARGS="-V"
+cmake -DUA_BUILD_FUZZING_CORPUS=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_ENABLE_ENCRYPTION=ON -GNinja ..
+ninja && ninja test ARGS="-V"
 if [ $? -ne 0 ] ; then exit 1 ; fi
 # Run our special generator
 $BUILD_DIR_CORPUS/bin/corpus_generator
@@ -41,8 +41,8 @@ if [ $? -ne 0 ] ; then exit 1 ; fi
 
 # Now build the fuzzer executables
 cd $BUILD_DIR_FUZZ_MODE
-cmake -DUA_BUILD_FUZZING=ON ..
-make -j
+cmake -DUA_BUILD_FUZZING=ON -GNinja ..
+ninja
 if [ $? -ne 0 ] ; then exit 1 ; fi
 
 merge_corpus() {
