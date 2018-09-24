@@ -251,7 +251,7 @@ else
     -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
     -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF \
     -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF -DUA_ENABLE_SUBSCRIPTIONS=ON -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON -GNinja ..
-    ninja && ninja test ARGS="-V"
+    ninja && ctest -V
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.unit_test_ns0_full_debug\\r'
@@ -263,7 +263,7 @@ else
     #-DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
     #-DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF \
     #-DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF -GNinja ..
-    #ninja && ninja test ARGS="-V"
+    #ninja && ctest -V
     #if [ $? -ne 0 ] ; then exit 1 ; fi
     #cd .. && rm build -rf
     #echo -en 'travis_fold:end:script.build.unit_test_ns0_full_release\\r'
@@ -274,7 +274,7 @@ else
     -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
     -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF -GNinja \
     -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
-    ninja && ninja test ARGS="-V"
+    ninja && ctest -V
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal_release\\r'
@@ -286,7 +286,7 @@ else
         -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
         -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=ON -GNinja \
         -DUA_ENABLE_UNIT_TESTS_MEMCHECK=ON ..
-        ninja && ninja test ARGS="-V"
+        ninja && ctest -V
         if [ $? -ne 0 ] ; then exit 1 ; fi
         echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal_debug\\r'
 
