@@ -153,7 +153,7 @@ try {
         Write-Host -ForegroundColor Green "`n##### Testing $env:CC_NAME with unit tests #####`n"
         New-Item -ItemType directory -Path "build"
         cd build
-        & cmake $vcpkg_toolchain $vcpkg_triplet -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=OFF -DUA_ENABLE_DISCOVERY=ON `
+        & cmake $vcpkg_toolchain $vcpkg_triplet -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=OFF `
             -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_ENABLE_ENCRYPTION:BOOL=$build_encryption -DUA_BUILD_UNIT_TESTS=ON `
              -DUA_ENABLE_PUBSUB:BOOL=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL:BOOL=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES:BOOL=ON `
             -DUA_ENABLE_UNIT_TESTS_MEMCHECK=ON -DCHECK_PREFIX=c:\check -DUA_COMPILE_AS_CXX:BOOL=$env:FORCE_CXX -G"$env:CC_NAME" ..

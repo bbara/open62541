@@ -36,7 +36,6 @@ matrix:
             - libsubunit-dev
             - libx11-dev
             - mingw-w64
-            - ninja-build
             - python-six
             - python3-six
             - texlive-fonts-recommended
@@ -65,7 +64,6 @@ matrix:
             - g++-8-multilib
             - graphviz
             - linux-libc-dev:i386
-            - ninja-build
             - python-six
             - python3-six
             - texlive-fonts-recommended
@@ -88,7 +86,6 @@ matrix:
             - clang-6.0
             - clang-tidy-6.0
             - graphviz
-            - ninja-build
             - python-six
             - texlive-fonts-recommended
             - texlive-latex-extra
@@ -110,7 +107,6 @@ matrix:
             - clang-6.0
             - clang-tidy-6.0
             - graphviz
-            - ninja-build
             - python3-six
             - texlive-fonts-recommended
             - texlive-latex-extra
@@ -127,7 +123,6 @@ matrix:
           packages:
             - check
             - graphviz
-            - ninja-build
             - python-six
             - python3-six
             - texlive-fonts-recommended
@@ -157,7 +152,6 @@ matrix:
             - clang-6.0
             - clang-tidy-6.0
             - graphviz
-            - ninja-build
             - python-six
             - python3-six
             - texlive-fonts-recommended
@@ -185,7 +179,6 @@ matrix:
             - clang-6.0
             - clang-tidy-6.0
             - libfuzzer-6.0-dev
-            - ninja-build
             - python-six
             - python3-six
       env:
@@ -218,8 +211,8 @@ addons:
       name: "open62541/open62541"
       description: "Build submitted by Travis"
     notification_email: noreply@open62541.org
-    build_command_prepend: "mkdir build && cd build && cmake -GNinja .."
-    build_command: "ninja"
+    build_command_prepend: "mkdir build && cd build && cmake .."
+    build_command: "make"
     branch_pattern: coverity_scan
 
 cache:

@@ -48,6 +48,7 @@ endif()
 ######################
 
 list(APPEND open62541_LIBRARIES "")
+include(helper_external)
 
 #################
 # Build Options #

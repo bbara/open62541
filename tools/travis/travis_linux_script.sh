@@ -14,9 +14,8 @@ if ! [ -z ${SONAR+x} ]; then
     git fetch --unshallow
 	mkdir -p build && cd build
 	build-wrapper-linux-x86-64 --out-dir ../bw-output cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-    -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_DISCOVERY=ON -DUA_ENABLE_DISCOVERY_MULTICAST=ON \
-    -DUA_ENABLE_ENCRYPTION -GNinja .. \
-    && ninja
+    -DCMAKE_BUILD_TYPE=DebugExamples -DUA_ENABLE_DISCOVERY_MULTICAST=ON .. \
+    && make -j
 	cd ..
 	sonar-scanner
 	exit 0
@@ -36,8 +35,8 @@ fi
 if ! [ -z ${LINT+x} ]; then
     mkdir -p build
     cd build
-    cmake -GNinja -DUA_ENABLE_STATIC_ANALYZER=ON ..
-    ninja
+    cmake -DUA_ENABLE_STATIC_ANALYZER=ON ..
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     exit 0
 fi
@@ -49,7 +48,7 @@ if ! [ -z ${FUZZER+x} ]; then
     if [ $? -ne 0 ] ; then exit 1 ; fi
 
     cd build_fuzz
-    ninja && ninja run_fuzzer
+    make -j && make run_fuzzer
     if [ $? -ne 0 ] ; then exit 1 ; fi
     exit 0
 fi
@@ -59,29 +58,29 @@ if [ $ANALYZE = "true" ]; then
     if ! case $CC in clang*) false;; esac; then
         mkdir -p build
         cd build
-        scan-build-6.0 cmake -DUA_BUILD_EXAMPLES=ON -DUA_BUILD_UNIT_TESTS=ON -GNinja ..
+        scan-build-6.0 cmake -DCMAKE_BUILD_TYPE=DebugFull ..
         scan-build-6.0 -enable-checker security.FloatLoopCounter \
           -enable-checker security.insecureAPI.UncheckedReturn \
           --status-bugs -v \
-          ninja
+          make -j
         cd .. && rm build -rf
 
         mkdir -p build
         cd build
-        scan-build-6.0 cmake -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -GNinja ..
+        scan-build-6.0 cmake -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON ..
         scan-build-6.0 -enable-checker security.FloatLoopCounter \
           -enable-checker security.insecureAPI.UncheckedReturn \
           --status-bugs -v \
-          ninja
+          make -j
         cd .. && rm build -rf
 
         mkdir -p build
         cd build
-        scan-build-6.0 cmake -DUA_ENABLE_AMALGAMATION=ON -GNinja ..
+        scan-build-6.0 cmake -DUA_ENABLE_AMALGAMATION=ON ..
         scan-build-6.0 -enable-checker security.FloatLoopCounter \
           -enable-checker security.insecureAPI.UncheckedReturn \
           --status-bugs -v \
-          ninja
+          make -j
         cd .. && rm build -rf
 
     else
@@ -106,10 +105,10 @@ else
     echo -e "\r\n== Documentation and certificate build =="  && echo -en 'travis_fold:start:script.build.doc\\r'
     mkdir -p build
     cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_BUILD_SELFSIGNED_CERTIFICATE=ON -GNinja ..
-    ninja doc
-    ninja doc_pdf
-    ninja selfsigned
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=ReleaseExamples -DUA_BUILD_SELFSIGNED_CERTIFICATE=ON ..
+    make -j doc
+    make -j doc_pdf
+    make -j selfsigned
     cp -r doc ../../
     cp -r doc_latex ../../
     cp ./examples/server_cert.der ../../
@@ -119,9 +118,9 @@ else
     echo -e "\r\n== Full Namespace 0 Generation ==" && echo -en 'travis_fold:start:script.build.ns0\\r'
     mkdir -p build
     cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=Debug -DUA_NAMESPACE_ZERO=FULL -DUA_BUILD_EXAMPLES=ON  \
-    -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON -GNinja ..
-    ninja
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples -DUA_NAMESPACE_ZERO=FULL  \
+    -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON ..
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.ns0\\r'
@@ -130,8 +129,8 @@ else
     if ! [ -z ${MINGW+x} ]; then
         echo -e "\r\n== Cross compile release build for MinGW 32 bit =="  && echo -en 'travis_fold:start:script.build.cross_mingw32\\r'
         mkdir -p build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-mingw32.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -GNinja ..
-        ninja
+        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-mingw32.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=ReleaseExamples ..
+        make -j
         if [ $? -ne 0 ] ; then exit 1 ; fi
         zip -r open62541-win32.zip ../../doc_latex/open62541.pdf ../LICENSE ../AUTHORS ../README.md ./bin/examples/server_ctt.exe ./bin/examples/client.exe ./bin/libopen62541.dll.a open62541.h open62541.c
         cp open62541-win32.zip ..
@@ -140,8 +139,8 @@ else
 
         echo -e "\r\n== Cross compile release build for MinGW 64 bit =="  && echo -en 'travis_fold:start:script.build.cross_mingw64\\r'
         mkdir -p build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-mingw64.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -GNinja ..
-        ninja
+        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-mingw64.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=ReleaseExamples ..
+        make -j
         if [ $? -ne 0 ] ; then exit 1 ; fi
         zip -r open62541-win64.zip ../../doc_latex/open62541.pdf ../LICENSE ../AUTHORS ../README.md ./bin/examples/server_ctt.exe ./bin/examples/client.exe ./bin/libopen62541.dll.a open62541.h open62541.c
         cp open62541-win64.zip ..
@@ -150,8 +149,8 @@ else
 
         echo -e "\r\n== Cross compile release build for 32-bit linux =="  && echo -en 'travis_fold:start:script.build.cross_linux\\r'
         mkdir -p build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-gcc-m32.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -GNinja ..
-        ninja
+        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-gcc-m32.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=ReleaseExamples ..
+        make -j
         if [ $? -ne 0 ] ; then exit 1 ; fi
         tar -pczf open62541-linux32.tar.gz ../../doc_latex/open62541.pdf ../LICENSE ../AUTHORS ../README.md ./bin/examples/server_ctt ./bin/examples/client ./bin/libopen62541.a open62541.h open62541.c
         cp open62541-linux32.tar.gz ..
@@ -162,8 +161,8 @@ else
         mkdir -p build && cd build
         git clone https://github.com/raspberrypi/tools
         export PATH=$PATH:./tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin/
-        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-rpi64.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -GNinja ..
-        ninja
+        cmake -DCMAKE_TOOLCHAIN_FILE=../tools/cmake/Toolchain-rpi64.cmake -DUA_ENABLE_AMALGAMATION=ON -DCMAKE_BUILD_TYPE=ReleaseExamples ..
+        make -j
         if [ $? -ne 0 ] ; then exit 1 ; fi
         tar -pczf open62541-raspberrypi.tar.gz ../../doc_latex/open62541.pdf ../LICENSE ../AUTHORS ../README.md ./bin/examples/server_ctt ./bin/examples/client ./bin/libopen62541.a open62541.h open62541.c
         cp open62541-raspberrypi.tar.gz ..
@@ -173,8 +172,8 @@ else
 
     echo -e "\r\n== Compile release build for 64-bit linux =="  && echo -en 'travis_fold:start:script.build.linux_64\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=Release -DUA_ENABLE_AMALGAMATION=ON -DUA_BUILD_EXAMPLES=ON -GNinja ..
-    ninja
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=ReleaseExamples -DUA_ENABLE_AMALGAMATION=ON ..
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     tar -pczf open62541-linux64.tar.gz ../../doc_latex/open62541.pdf ../LICENSE ../AUTHORS ../README.md ./bin/examples/server_ctt ./bin/examples/client ./bin/libopen62541.a open62541.h open62541.c
     cp open62541-linux64.tar.gz ..
@@ -194,8 +193,8 @@ else
 
     echo "Compile as shared lib version" && echo -en 'travis_fold:start:script.build.shared_libs\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DBUILD_SHARED_LIBS=ON -DUA_ENABLE_AMALGAMATION=ON -DUA_BUILD_EXAMPLES=ON -GNinja ..
-    ninja
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples -DBUILD_SHARED_LIBS=ON -DUA_ENABLE_AMALGAMATION=ON ..
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.shared_libs\\r'
@@ -203,8 +202,8 @@ else
     if [ "$CC" != "tcc" ]; then
         echo -e "\r\n==Compile multithreaded version==" && echo -en 'travis_fold:start:script.build.multithread\\r'
         mkdir -p build && cd build
-        cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_MULTITHREADING=ON -DUA_BUILD_EXAMPLES=ON -GNinja ..
-        ninja
+        cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples -DUA_ENABLE_MULTITHREADING=ON ..
+        make -j
         if [ $? -ne 0 ] ; then exit 1 ; fi
         cd .. && rm build -rf
         echo -en 'travis_fold:end:script.build.multithread\\r'
@@ -212,24 +211,24 @@ else
 
     echo -e "\r\n== Compile with encryption ==" && echo -en 'travis_fold:start:script.build.encryption\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_ENCRYPTION=ON -DUA_BUILD_EXAMPLES=ON -GNinja ..
-    ninja
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples .. # TODO: encryption default for now
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.encryption\\r'
 
     echo -e "\r\n== Compile without discovery version ==" && echo -en 'travis_fold:start:script.build.discovery\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_DISCOVERY=OFF -DUA_ENABLE_DISCOVERY_MULTICAST=OFF -DUA_BUILD_EXAMPLES=ON -GNinja ..
-    ninja
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples -DUA_ENABLE_DISCOVERY=OFF ..
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.discovery\\r'
 
     echo -e "\r\n== Compile discovery without multicast version ==" && echo -en 'travis_fold:start:script.build.multicast\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_DISCOVERY=ON -DUA_ENABLE_DISCOVERY_MULTICAST=OFF -DUA_BUILD_EXAMPLES=ON -GNinja ..
-    ninja
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples .. # TODO: discovery without multicast default for now
+    make -j
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.multicast\\r'
@@ -237,8 +236,8 @@ else
     if [ "$CC" != "tcc" ]; then
         echo -e "\r\n== Compile multithreaded version with discovery ==" && echo -en 'travis_fold:start:script.build.multithread_discovery\\r'
         mkdir -p build && cd build
-        cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_MULTITHREADING=ON -DUA_ENABLE_DISCOVERY=ON -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_EXAMPLES=ON -GNinja ..
-        ninja
+        cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugExamples -DUA_ENABLE_MULTITHREADING=ON -DUA_ENABLE_DISCOVERY_MULTICAST=ON ..
+        make -j
         if [ $? -ne 0 ] ; then exit 1 ; fi
         cd .. && rm build -rf
         echo -en 'travis_fold:end:script.build.multithread_discovery\\r'
@@ -248,10 +247,8 @@ else
     mkdir -p build && cd build
     # Valgrind cannot handle the full NS0 because the generated file is too big. Thus run NS0 full without valgrind
     cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_NAMESPACE_ZERO=FULL \
-    -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
-    -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF \
-    -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF -DUA_ENABLE_SUBSCRIPTIONS=ON -DUA_ENABLE_SUBSCRIPTIONS_EVENTS=ON -GNinja ..
-    ninja && ctest -V
+    -DCMAKE_BUILD_TYPE=DebugCI -DUA_ENABLE_COVERAGE=OFF ..
+    make -j && ctest -V
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.unit_test_ns0_full_debug\\r'
@@ -260,21 +257,18 @@ else
     #mkdir -p build && cd build
     # Valgrind cannot handle the full NS0 because the generated file is too big. Thus run NS0 full without valgrind
     #cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_ENABLE_FULL_NS0=ON \
-    #-DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
+    #-DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON \
     #-DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF \
-    #-DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF -GNinja ..
-    #ninja && ctest -V
+    #-DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
+    #make -j && ctest -V
     #if [ $? -ne 0 ] ; then exit 1 ; fi
     #cd .. && rm build -rf
     #echo -en 'travis_fold:end:script.build.unit_test_ns0_full_release\\r'
 
     echo -e "\r\n== Unit tests (minimal NS0; Release) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal_release\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-    -DCMAKE_BUILD_TYPE=Release -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
-    -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=OFF -GNinja \
-    -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
-    ninja && ctest -V
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=ReleaseCI -DUA_ENABLE_COVERAGE=OFF ..
+    make -j && ctest -V
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
     echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal_release\\r'
@@ -282,11 +276,8 @@ else
     if [ "$CC" != "tcc" ]; then
         echo -e "\r\n== Unit tests (minimal NS0; Debug) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal_debug\\r'
         mkdir -p build && cd build
-        cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON \
-        -DCMAKE_BUILD_TYPE=Debug -DUA_BUILD_EXAMPLES=ON -DUA_ENABLE_PUBSUB=ON -DUA_ENABLE_PUBSUB_DELTAFRAMES=ON -DUA_ENABLE_PUBSUB_INFORMATIONMODEL=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_DISCOVERY=ON \
-        -DUA_ENABLE_DISCOVERY_MULTICAST=ON -DUA_BUILD_UNIT_TESTS=ON -DUA_ENABLE_COVERAGE=ON -GNinja \
-        -DUA_ENABLE_UNIT_TESTS_MEMCHECK=ON ..
-        ninja && ctest -V
+        cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=DebugCI ..
+        make -j && ctest -V
         if [ $? -ne 0 ] ; then exit 1 ; fi
         echo -en 'travis_fold:end:script.build.unit_test_ns0_minimal_debug\\r'
 

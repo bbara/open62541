@@ -19,7 +19,6 @@ if(NOT UA_COMPILE_AS_CXX)
 
     if(UA_ENABLE_PROTECTORS)
         check_cc_flag("-fstack-protector-strong") # more performant stack protector, available since gcc 4.9
-        check_cc_flag("-D_FORTIFY_SOURCE=2") # run-time buffer overflow detection (needs at least -O1)
         check_cc_flag_untested("-mcet -fcf-protection") # future use (control flow integrity protection)
         check_cc_flag_untested("-fstack-clash-protection") # future use (increased reliability of stack overflow detection)        
     endif()
@@ -53,6 +52,9 @@ if(NOT UA_COMPILE_AS_CXX)
     if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel" OR CMAKE_BUILD_TYPE STREQUAL "Release")
         add_definitions(-ffunction-sections -fdata-sections -fno-unwind-tables -fno-stack-protector
                         -fno-asynchronous-unwind-tables -fno-math-errno -fmerge-all-constants -fno-ident -O2)
+        if(UA_ENABLE_PROTECTORS)
+            check_cc_flag("-D_FORTIFY_SOURCE=2") # run-time buffer overflow detection (needs at least -O1)    
+        endif()
         if(NOT OS9)
             set(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -s")
             set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -s")
