@@ -247,7 +247,7 @@ else
     mkdir -p build && cd build
     # Valgrind cannot handle the full NS0 because the generated file is too big. Thus run NS0 full without valgrind
     cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DUA_NAMESPACE_ZERO=FULL \
-    -DCMAKE_BUILD_TYPE=DebugCI -DUA_ENABLE_COVERAGE=OFF ..
+    -DCMAKE_BUILD_TYPE=DebugCI -DUA_ENABLE_COVERAGE=OFF -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
     make -j && ctest -V
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf
@@ -267,7 +267,7 @@ else
 
     echo -e "\r\n== Unit tests (minimal NS0; Release) ==" && echo -en 'travis_fold:start:script.build.unit_test_ns0_minimal_release\\r'
     mkdir -p build && cd build
-    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=ReleaseCI -DUA_ENABLE_COVERAGE=OFF ..
+    cmake -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/$PYTHON -DCMAKE_BUILD_TYPE=ReleaseCI -DUA_ENABLE_COVERAGE=OFF -DUA_ENABLE_UNIT_TESTS_MEMCHECK=OFF ..
     make -j && ctest -V
     if [ $? -ne 0 ] ; then exit 1 ; fi
     cd .. && rm build -rf

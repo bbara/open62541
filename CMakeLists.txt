@@ -117,13 +117,17 @@ if(UA_ENABLE_DISCOVERY)
     include_directories(${PROJECT_SOURCE_DIR}/src/client)
 endif()
 
+if(UA_ENABLE_ENCRYPTION)
+  include_directories(${MBEDTLS_INCLUDE_DIRS})
+endif()
+
 include_directories(${PROJECT_SOURCE_DIR}/include
                     ${PROJECT_SOURCE_DIR}/plugins
                     ${PROJECT_SOURCE_DIR}/deps
                     ${PROJECT_SOURCE_DIR}/src/pubsub
                     ${PROJECT_BINARY_DIR}
-                    ${PROJECT_BINARY_DIR}/src_generated
-                    ${MBEDTLS_INCLUDE_DIRS})
+                    ${PROJECT_BINARY_DIR}/src_generated)
+
 
 set(exported_headers ${exported_headers}
                      ${PROJECT_BINARY_DIR}/src_generated/ua_config.h

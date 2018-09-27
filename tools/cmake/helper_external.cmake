@@ -6,5 +6,5 @@
 find_package(MbedTLS)
 if(MbedTLS_FOUND)
   list(APPEND open62541_LIBRARIES ${MBEDTLS_LIBRARIES})
-  set(UA_ENABLE_ENCRYPTION ON)
+  ua_set_if_not_set(UA_ENABLE_ENCRYPTION ON)
 endif()
