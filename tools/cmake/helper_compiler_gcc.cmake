@@ -23,11 +23,11 @@ if(NOT UA_COMPILE_AS_CXX)
         check_cc_flag_untested("-fstack-clash-protection") # future use (increased reliability of stack overflow detection)        
     endif()
 
-    # needed to check if IPO is supported (check needs cmake > 3.9)
-    if("${CMAKE_VERSION}" VERSION_GREATER 3.9)
-        cmake_policy(SET CMP0069 NEW) # needed as long as required cmake < 3.9
+    # Inter Procedural Optimization / Link Time Optimization (should be same as -flto)
+    # ignore LTO when amalgamation is active since it requires *much* memory
+    if(NOT UA_ENABLE_AMALGAMATION AND "${CMAKE_VERSION}" VERSION_GREATER 3.9)
         include(CheckIPOSupported)
-        check_ipo_supported(RESULT CC_HAS_IPO) # Inter Procedural Optimization / Link Time Optimization (should be same as -flto)
+        check_ipo_supported(RESULT CC_HAS_IPO) 
         if(CC_HAS_IPO)
             set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
         endif()
