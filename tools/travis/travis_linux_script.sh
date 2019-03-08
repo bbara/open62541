@@ -92,6 +92,33 @@ echo "=== Install build, then compile examples ===" && echo -en 'travis_fold:sta
     exit 0
 fi
 
+if ! [ -z ${CLANG_FORMAT+x} ]; then
+
+    # Only run clang format on Pull requests, not on direct push
+    if [ -z ${TRAVIS_PULL_REQUEST_SLUG+x} ]; then
+        echo -en "\\nSkipping clang-format on non-pull request\\n"
+    fi
+
+    echo "=== Running clang-format ===" && echo -en 'travis_fold:start:script.clang-format\\r'
+
+    # add clang-format-ci
+    curl -Ls "https://raw.githubusercontent.com/llvm-mirror/clang/c510fac5695e904b43d5bf0feee31cc9550f110e/tools/clang-format/git-clang-format" -o "$LOCAL_PKG/bin/git-clang-format"
+    chmod +x $LOCAL_PKG/bin/git-clang-format
+
+    # clang-format the diff to the target branch of the PR
+    difference="$($LOCAL_PKG/bin/git-clang-format --style=file --diff $TRAVIS_BRANCH)"
+    if ! [ "${difference}" = "no modified files to format" ]; then
+        echo "====== clang-format did not find any issues. Well done! ======"
+        exit 1
+    fi
+
+    echo "====== clang-format Static Analysis Errors ======"
+    echo -en ${difference}
+
+    echo -en 'travis_fold:start:script.clang-format\\r'
+    exit 0
+fi
+
 if ! [ -z ${ANALYZE+x} ]; then
     echo "=== Running static code analysis ===" && echo -en 'travis_fold:start:script.analyze\\r'
     if ! case $CC in clang*) false;; esac; then
