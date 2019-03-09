@@ -1,0 +1,2 @@
+Checks:             'cert-*,performance-*,readability-*,-readability-braces-around-statements'
+WarningsAsErrors:    'cert-*,performance-*,readability-*,-readability-braces-around-statements'

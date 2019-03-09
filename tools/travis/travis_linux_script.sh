@@ -99,6 +99,15 @@ if ! [ -z ${CLANG_FORMAT+x} ]; then
         echo -en "\\nSkipping clang-format on non-pull request\\n"
     fi
 
+    # create JSON compile commands
+    mkdir -p build
+    cd build
+    cmake ..
+    cd ..
+    # run own version of git clang-format using tidy
+    ./tools/git-clang-tidy --diff $TRAVIS_BRANCH
+    rm build -rf
+    
     echo "=== Running clang-format ===" && echo -en 'travis_fold:start:script.clang-format\\r'
 
     # add clang-format-ci

@@ -49,9 +49,9 @@ The following git-config settings set the default of the corresponding option:
   clangFormat.style
 '''
 
-# Name of the temporary index file in which save the output of clang-format.
+# Name of the temporary index file in which save the output of clang-tidy.
 # This file is created within the .git directory.
-temp_index_basename = 'clang-format-index'
+temp_index_basename = 'clang-tidy-index'
 
 
 Range = collections.namedtuple('Range', 'start, count')
@@ -90,8 +90,8 @@ def main():
     usage=usage, formatter_class=argparse.RawDescriptionHelpFormatter,
     description=desc)
   p.add_argument('--binary',
-                 default=config.get('clangformat.binary', 'clang-format'),
-                 help='path to clang-format'),
+                 default=config.get('clangformat.binary', 'clang-tidy'),
+                 help='path to clang-tidy'),
   p.add_argument('--commit',
                  default=config.get('clangformat.commit', 'HEAD'),
                  help='default commit to use if none is specified'),
@@ -152,6 +152,22 @@ def main():
   # The computed diff outputs absolute paths, so we must cd before accessing
   # those files.
   cd_to_toplevel()
+  if opts.binary == 'clang-tidy':
+    for i, (f, lines) in enumerate(changed_lines.items()):
+      json_str = '-line-filter=[ {"name":"%s", "lines":[' % f
+      files += f + ' '
+      for j, (line, count) in enumerate(lines):
+        json_str += '[%d,%d]' % (line, (line + count))
+        if j < (len(lines) - 1):
+          json_str += ','
+      json_str += ']} ]'
+      print('File %s:' % f)
+      clang_tidy = subprocess.Popen(['clang-tidy', '-p=build', json_str, f], stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE)
+      stdout, stderr = clang_tidy.communicate()
+      print(stdout, stderr)
+    exit(1)
+
   if len(commits) > 1:
     old_tree = commits[1]
     new_tree = run_clang_format_and_save_to_tree(changed_lines,
@@ -408,7 +424,7 @@ def clang_format_to_blob(filename, line_ranges, revision=None,
   if style:
     clang_format_cmd.extend(['-style='+style])
   clang_format_cmd.extend([
-      '-lines=%s:%s' % (start_line, start_line+line_count-1)
+      '-line-filter=[ {"name":"%s", "lines":[[%s,%s]]} ]' % (filename, start_line, start_line+line_count-1)
       for start_line, line_count in line_ranges])
   if revision:
     clang_format_cmd.extend(['-assume-filename='+filename])
@@ -421,7 +437,8 @@ def clang_format_to_blob(filename, line_ranges, revision=None,
     clang_format_cmd.extend([filename])
     git_show = None
     clang_format_stdin = subprocess.PIPE
-  try:
+  try:  
+    clang_format_cmd.extend(['--'])
     clang_format = subprocess.Popen(clang_format_cmd, stdin=clang_format_stdin,
                                     stdout=subprocess.PIPE)
     if clang_format_stdin == subprocess.PIPE:

@@ -48,6 +48,8 @@ if(NOT OPEN62541_VER_COMMIT OR OPEN62541_VER_COMMIT STREQUAL "")
     set(OPEN62541_VER_COMMIT "undefined")
 endif()
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 #################
 # Build Options #
 #################
