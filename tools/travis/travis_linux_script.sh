@@ -116,6 +116,13 @@ if ! [ -z ${CLANG_FORMAT+x} ]; then
 
     # clang-format the diff to the target branch of the PR
     difference="$($LOCAL_PKG/bin/git-clang-format --style=file --diff $TRAVIS_BRANCH)"
+
+    # add analyzation
+    mkdir -p build
+    cd build && cmake ..
+    make clangformat
+    git diff --stat
+
     if ! [ "${difference}" = "no modified files to format" ]; then
         echo "====== clang-format did not find any issues. Well done! ======"
         exit 1
