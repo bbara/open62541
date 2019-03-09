@@ -102,8 +102,8 @@ if ! [ -z ${CLANG_FORMAT+x} ]; then
     # create JSON compile commands & build to create generated sources
     mkdir -p build
     cd build
-    cmake ..
-    make -j
+    $(cmake ..)
+    $(make -j)
     cd ..
     # run own version of git clang-format using tidy
     ./tools/git-clang-tidy --diff $TRAVIS_BRANCH

@@ -164,9 +164,9 @@ def main():
       print('File %s:' % f)
       clang_tidy = subprocess.Popen(['clang-tidy', '-p=build', json_str, f], stdin=subprocess.PIPE,
                                       stdout=subprocess.PIPE)
-      stdout, stderr = clang_tidy.communicate()
-      print(stdout, stderr)
-    exit(1)
+      stdout, _ = clang_tidy.communicate()
+      print(stdout)
+    exit(0)
 
   if len(commits) > 1:
     old_tree = commits[1]
